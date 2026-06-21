@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Property Manager</title>
+<style>
+  :root {
+    --bg: #0f1115; --card: #171a21; --border: #262b36;
+    --text: #e6e8ec; --muted: #8b919e; --accent: #5b8cff;
+    --green: #4ade80; --red: #f87171; --yellow: #facc15;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 32px 20px; }
+  h1 { font-size: 24px; margin: 0; }
+  h2 { font-size: 18px; margin: 0 0 12px; }
+  .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  button { background: var(--accent); color:#fff; border:none; border-radius:8px; padding:9px 14px; font-size:13px; font-weight:600; cursor:pointer; }
+  button.secondary { background:transparent; border:1px solid var(--border); color:var(--text); }
+  button.danger { background: rgba(248,113,113,0.15); color: var(--red); border:1px solid rgba(248,113,113,0.3); }
+  input, select { width:100%; background:#0f1115; border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-size:13px; margin-bottom:8px; }
+  label { font-size:11px; color:var(--muted); display:block; margin-bottom:3px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:18px; margin-bottom:16px; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap:12px; margin-bottom: 16px;}
+  .stat { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; text-align:center; }
+  .stat .num { font-size: 26px; font-weight:700; }
+  .stat .label { font-size:12px; color:var(--muted); margin-top:4px; }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .row3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  .property-item { display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid var(--border); cursor:pointer; }
+  .property-item:hover { background: rgba(255,255,255,0.02); }
+  .property-item:last-child { border-bottom:none; }
+  .unit-item { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border); }
+  .unit-item:last-child { border-bottom:none; }
+  .badge { font-size:11px; font-weight:600; padding:3px 8px; border-radius:999px; text-transform:uppercase; }
+  .badge.OCCUPIED { background:rgba(74,222,128,0.15); color:var(--green); }
+  .badge.VACANT { background:rgba(250,204,21,0.15); color:var(--yellow); }
+  #error-msg { color: var(--red); font-size:13px; min-height:16px; margin-bottom: 6px;}
+  .hidden { display:none !important; }
+  .link-btn { background:none; border:none; color:var(--accent); cursor:pointer; font-size:13px; padding:0; text-decoration:underline; }
+  .actions { display:flex; gap:6px; }
+  .back-btn { margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- AUTH SCREEN -->
+  <div id="auth-screen">
+    <h1 style="margin-bottom:4px;">Property Manager</h1>
+    <div class="muted" style="margin-bottom:24px;">Spring Boot + JWT Auth + MySQL/JPA</div>
+    <div class="card" style="max-width:380px;">
+      <h2 id="auth-title">Log in</h2>
+      <div id="error-msg"></div>
+      <div id="signup-fields" class="hidden">
+        <label>Full name</label>
+        <input id="signup-name" placeholder="Jane Landlord">
+      </div>
+      <label>Email</label>
+      <input id="auth-email" type="email" placeholder="you@example.com">
+      <label>Password</label>
+      <input id="auth-password" type="password" placeholder="••••••••">
+      <button id="auth-submit" style="width:100%; margin-top:8px;">Log in</button>
+      <div style="text-align:center; margin-top:12px;">
+        <button class="link-btn" id="toggle-auth-mode">Need an account? Sign up</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="app-screen" class="hidden">
+    <div class="topbar">
+      <h1 id="welcome-text">Property Manager</h1>
+      <button class="secondary" id="logout-btn">Log out</button>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="grid" id="dashboard-stats"></div>
+
+    <!-- PROPERTIES LIST VIEW -->
+    <div id="properties-view">
+      <div class="card">
+        <h2>Add a property</h2>
+        <div id="property-error" class="muted" style="color:var(--red); min-height:14px;"></div>
+        <div class="row2">
+          <div><label>Name</label><input id="p-name" placeholder="Sunset Apartments"></div>
+          <div><label>City</label><input id="p-city" placeholder="Austin"></div>
+        </div>
+        <div class="row3">
+          <div><label>Address</label><input id="p-address" placeholder="123 Main St"></div>
+          <div><label>State</label><input id="p-state" placeholder="TX"></div>
+          <div><label>Zip</label><input id="p-zip" placeholder="78701"></div>
+        </div>
+        <button id="add-property-btn">Add Property</button>
+      </div>
+
+      <div class="card">
+        <h2>Your properties</h2>
+        <div class="row2" style="margin-bottom:4px;">
+          <input id="search-city" placeholder="Filter by city...">
+          <button class="secondary" id="search-btn">Search</button>
+        </div>
+        <div id="properties-list"></div>
+      </div>
+    </div>
+
+    <!-- PROPERTY DETAIL VIEW (units) -->
+    <div id="property-detail-view" class="hidden">
+      <button class="secondary back-btn" id="back-to-properties">&larr; Back to properties</button>
+      <div class="card">
+        <h2 id="detail-property-name"></h2>
+        <div class="muted" id="detail-property-address" style="margin-bottom:16px;"></div>
+
+        <h2 style="font-size:14px; margin-bottom:8px;">Add a unit</h2>
+        <div class="row3">
+          <div><label>Unit #</label><input id="u-number" placeholder="2B"></div>
+          <div><label>Bedrooms</label><input id="u-bed" type="number" min="0" value="1"></div>
+          <div><label>Bathrooms</label><input id="u-bath" type="number" min="0" value="1"></div>
+        </div>
+        <div><label>Monthly rent ($)</label><input id="u-rent" type="number" min="0" placeholder="1500"></div>
+        <button id="add-unit-btn">Add Unit</button>
+      </div>
+
+      <div class="card">
+        <h2>Units</h2>
+        <div id="units-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = "http://localhost:8080";
+let token = null;
+let currentProperties = [];
+let activePropertyId = null;
+let authMode = "login";
+
+// ---------- Auth screen ----------
+const authTitle = document.getElementById("auth-title");
+const signupFields = document.getElementById("signup-fields");
+const authSubmitBtn = document.getElementById("auth-submit");
+const toggleAuthBtn = document.getElementById("toggle-auth-mode");
+const errorMsg = document.getElementById("error-msg");
+
+toggleAuthBtn.addEventListener("click", () => {
+  authMode = authMode === "login" ? "signup" : "login";
+  authTitle.textContent = authMode === "login" ? "Log in" : "Sign up";
+  authSubmitBtn.textContent = authMode === "login" ? "Log in" : "Sign up";
+  toggleAuthBtn.textContent = authMode === "login" ? "Need an account? Sign up" : "Already have an account? Log in";
+  signupFields.classList.toggle("hidden", authMode === "login");
+  errorMsg.textContent = "";
+});
+
+authSubmitBtn.addEventListener("click", async () => {
+  errorMsg.textContent = "";
+  const email = document.getElementById("auth-email").value.trim();
+  const password = document.getElementById("auth-password").value;
+  const endpoint = authMode === "login" ? "/api/auth/login" : "/api/auth/signup";
+  const body = authMode === "login"
+    ? { email, password }
+    : { email, password, fullName: document.getElementById("signup-name").value.trim() };
+
+  try {
+    const res = await fetch(API + endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Something went wrong");
+    token = data.token;
+    document.getElementById("welcome-text").textContent = "Welcome, " + data.fullName;
+    showApp();
+  } catch (err) {
+    errorMsg.textContent = err.message;
+  }
+});
+
+document.getElementById("logout-btn").addEventListener("click", () => {
+  token = null;
+  document.getElementById("app-screen").classList.add("hidden");
+  document.getElementById("auth-screen").classList.remove("hidden");
+});
+
+function showApp() {
+  document.getElementById("auth-screen").classList.add("hidden");
+  document.getElementById("app-screen").classList.remove("hidden");
+  loadDashboard();
+  loadProperties();
+}
+
+// ---------- Authenticated fetch helper ----------
+async function api(path, options = {}) {
+  const res = await fetch(API + path, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + token,
+      ...(options.headers || {}),
+    },
+  });
+  if (res.status === 204) return null;
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+// ---------- Dashboard ----------
+async function loadDashboard() {
+  try {
+    const stats = await api("/api/dashboard/occupancy");
+    document.getElementById("dashboard-stats").innerHTML = `
+      <div class="stat"><div class="num">${stats.totalUnits}</div><div class="label">Total Units</div></div>
+      <div class="stat"><div class="num" style="color:var(--green)">${stats.occupiedUnits}</div><div class="label">Occupied</div></div>
+      <div class="stat"><div class="num" style="color:var(--yellow)">${stats.vacantUnits}</div><div class="label">Vacant</div></div>
+      <div class="stat"><div class="num">${stats.occupancyRate.toFixed(1)}%</div><div class="label">Occupancy Rate</div></div>
+      <div class="stat"><div class="num">$${Number(stats.totalMonthlyRentCollected).toLocaleString()}</div><div class="label">Monthly Rent Collected</div></div>
+    `;
+  } catch (err) { /* dashboard is non-critical, fail silently */ }
+}
+
+// ---------- Properties ----------
+async function loadProperties(cityFilter) {
+  try {
+    const path = cityFilter ? `/api/properties/search?city=${encodeURIComponent(cityFilter)}` : "/api/properties";
+    currentProperties = await api(path);
+    renderProperties();
+  } catch (err) {
+    document.getElementById("properties-list").innerHTML = `<div class="muted">${err.message}</div>`;
+  }
+}
+
+function renderProperties() {
+  const list = document.getElementById("properties-list");
+  if (currentProperties.length === 0) {
+    list.innerHTML = '<div class="muted" style="padding:12px 0;">No properties yet. Add one above.</div>';
+    return;
+  }
+  list.innerHTML = currentProperties.map(p => `
+    <div class="property-item" onclick="openProperty(${p.id})">
+      <div>
+        <strong>${escapeHtml(p.name)}</strong>
+        <div class="muted">${escapeHtml(p.addressLine)}, ${escapeHtml(p.city)} ${escapeHtml(p.state || "")} ${escapeHtml(p.zipCode || "")}</div>
+      </div>
+      <button class="danger" onclick="event.stopPropagation(); deleteProperty(${p.id})">Delete</button>
+    </div>
+  `).join("");
+}
+
+document.getElementById("add-property-btn").addEventListener("click", async () => {
+  const errEl = document.getElementById("property-error");
+  errEl.textContent = "";
+  const body = {
+    name: document.getElementById("p-name").value.trim(),
+    addressLine: document.getElementById("p-address").value.trim(),
+    city: document.getElementById("p-city").value.trim(),
+    state: document.getElementById("p-state").value.trim(),
+    zipCode: document.getElementById("p-zip").value.trim(),
+  };
+  try {
+    await api("/api/properties", { method: "POST", body: JSON.stringify(body) });
+    ["p-name","p-address","p-city","p-state","p-zip"].forEach(id => document.getElementById(id).value = "");
+    loadProperties();
+    loadDashboard();
+  } catch (err) {
+    errEl.textContent = err.message;
+  }
+});
+
+async function deleteProperty(id) {
+  if (!confirm("Delete this property and all its units?")) return;
+  await api(`/api/properties/${id}`, { method: "DELETE" });
+  loadProperties();
+  loadDashboard();
+}
+
+document.getElementById("search-btn").addEventListener("click", () => {
+  loadProperties(document.getElementById("search-city").value.trim());
+});
+
+// ---------- Property detail / Units ----------
+async function openProperty(id) {
+  activePropertyId = id;
+  const property = currentProperties.find(p => p.id === id) || await api(`/api/properties/${id}`);
+  document.getElementById("detail-property-name").textContent = property.name;
+  document.getElementById("detail-property-address").textContent =
+    `${property.addressLine}, ${property.city} ${property.state || ""} ${property.zipCode || ""}`;
+  document.getElementById("properties-view").classList.add("hidden");
+  document.getElementById("property-detail-view").classList.remove("hidden");
+  loadUnits(id);
+}
+
+document.getElementById("back-to-properties").addEventListener("click", () => {
+  document.getElementById("property-detail-view").classList.add("hidden");
+  document.getElementById("properties-view").classList.remove("hidden");
+  loadProperties();
+});
+
+async function loadUnits(propertyId) {
+  try {
+    const units = await api(`/api/properties/${propertyId}/units`);
+    renderUnits(units);
+  } catch (err) {
+    document.getElementById("units-list").innerHTML = `<div class="muted">${err.message}</div>`;
+  }
+}
+
+function renderUnits(units) {
+  const list = document.getElementById("units-list");
+  if (units.length === 0) {
+    list.innerHTML = '<div class="muted" style="padding:8px 0;">No units yet. Add one above.</div>';
+    return;
+  }
+  list.innerHTML = units.map(u => `
+    <div class="unit-item">
+      <div>
+        <strong>Unit ${escapeHtml(u.unitNumber)}</strong>
+        <span class="badge ${u.status}" style="margin-left:8px;">${u.status}</span>
+        <div class="muted">${u.bedrooms} bed / ${u.bathrooms} bath &middot; $${Number(u.rentAmount).toLocaleString()}/mo</div>
+      </div>
+      <div class="actions">
+        ${u.status === "VACANT"
+          ? `<button onclick="moveIn(${u.id})">Move in tenant</button>`
+          : `<button class="secondary" onclick="moveOut(${u.id})">Move out</button>`}
+        <button class="danger" onclick="deleteUnit(${u.id})">Delete</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+document.getElementById("add-unit-btn").addEventListener("click", async () => {
+  const body = {
+    unitNumber: document.getElementById("u-number").value.trim(),
+    bedrooms: Number(document.getElementById("u-bed").value) || 0,
+    bathrooms: Number(document.getElementById("u-bath").value) || 0,
+    rentAmount: Number(document.getElementById("u-rent").value) || 0,
+  };
+  try {
+    await api(`/api/properties/${activePropertyId}/units`, { method: "POST", body: JSON.stringify(body) });
+    document.getElementById("u-number").value = "";
+    document.getElementById("u-rent").value = "";
+    loadUnits(activePropertyId);
+    loadDashboard();
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+async function deleteUnit(id) {
+  if (!confirm("Delete this unit?")) return;
+  await api(`/api/units/${id}`, { method: "DELETE" });
+  loadUnits(activePropertyId);
+  loadDashboard();
+}
+
+async function moveIn(unitId) {
+  const fullName = prompt("Tenant full name:");
+  if (!fullName) return;
+  try {
+    await api(`/api/units/${unitId}/tenant/move-in`, {
+      method: "POST",
+      body: JSON.stringify({ fullName, email: "", phone: "", leaseStartDate: null, leaseEndDate: null }),
+    });
+    loadUnits(activePropertyId);
+    loadDashboard();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+async function moveOut(unitId) {
+  if (!confirm("Move out the current tenant?")) return;
+  await api(`/api/units/${unitId}/tenant/move-out`, { method: "POST" });
+  loadUnits(activePropertyId);
+  loadDashboard();
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str || "";
+  return div.innerHTML;
+}
+</script>
+</body>
+</html>
